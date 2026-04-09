@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank } from "lucide-react";
+import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface ExpenseItem {
   id: string;
@@ -69,6 +71,86 @@ const Index = () => {
       maximumFractionDigits: 0,
     }).format(n);
 
+  const exportPDF = useCallback(() => {
+    const doc = new jsPDF();
+    const fc = formatCurrency;
+    let y = 20;
+
+    doc.setFont("courier", "bold");
+    doc.setFontSize(20);
+    doc.text("Expense Tracker", 105, y, { align: "center" });
+    y += 12;
+
+    doc.setFont("courier", "normal");
+    doc.setFontSize(10);
+    doc.text(`Generated ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
+    y += 16;
+
+    // Income
+    doc.setFontSize(14);
+    doc.setFont("courier", "bold");
+    doc.text("Monthly Income", 14, y);
+    y += 8;
+    doc.setFont("courier", "normal");
+    doc.setFontSize(12);
+    doc.text(fc(income), 14, y);
+    y += 14;
+
+    // Expenses table
+    if (expenses.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont("courier", "bold");
+      doc.text("Monthly Expenses", 14, y);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Expense", "Amount"]],
+        body: [
+          ...expenses.map((e) => [e.label, fc(e.amount)]),
+          [{ content: "Total", styles: { fontStyle: "bold" } }, { content: fc(totalExpenses), styles: { fontStyle: "bold" } }],
+        ],
+        styles: { font: "courier", fontSize: 10 },
+        headStyles: { fillColor: [45, 45, 45] },
+        theme: "grid",
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 14;
+    }
+
+    // Summary
+    doc.setFontSize(14);
+    doc.setFont("courier", "bold");
+    doc.text("Monthly Savings", 14, y);
+    y += 8;
+    doc.setFont("courier", "normal");
+    doc.setFontSize(12);
+    doc.text(fc(monthlySavings), 14, y);
+    y += 6;
+    doc.setFontSize(10);
+    doc.text(`${fc(yearlySavings)} per year`, 14, y);
+    y += 14;
+
+    // Projection
+    doc.setFontSize(14);
+    doc.setFont("courier", "bold");
+    doc.text("Savings Projection", 14, y);
+    y += 8;
+    doc.setFont("courier", "normal");
+    doc.setFontSize(10);
+    doc.text(`In ${years} year${years !== 1 ? "s" : ""} at ${interestRate}% annual return`, 14, y);
+    y += 6;
+    doc.setFontSize(16);
+    doc.setFont("courier", "bold");
+    doc.text(fc(projectedSavings), 14, y);
+    y += 6;
+    doc.setFont("courier", "normal");
+    doc.setFontSize(9);
+    doc.text("with compound interest (monthly contributions)", 14, y);
+
+    doc.save("expense-tracker.pdf");
+  }, [income, expenses, totalExpenses, monthlySavings, yearlySavings, projectedSavings, years, interestRate, formatCurrency]);
+
   return (
     <div className="min-h-screen bg-background px-4 py-12 md:py-20">
       <div className="mx-auto max-w-2xl">
@@ -82,6 +164,17 @@ const Index = () => {
         <p className="mb-12 text-center font-body text-sm text-muted-foreground">
           income — expenses — savings projection
         </p>
+
+        {/* Export button */}
+        <div className="mb-8 flex justify-end">
+          <button
+            onClick={exportPDF}
+            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export PDF
+          </button>
+        </div>
 
         {/* Income */}
         <section className="mb-10">
