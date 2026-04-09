@@ -47,6 +47,21 @@ const Index = () => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
+  const updateExpense = (id: string, field: "label" | "amount", value: string) => {
+    setExpenses((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              ...(field === "label"
+                ? { label: value }
+                : { amount: parseFloat(value) || 0 }),
+            }
+          : e
+      )
+    );
+  };
+
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -128,11 +143,21 @@ const Index = () => {
                 exit={{ opacity: 0, x: 10 }}
                 className="group flex items-center justify-between border-b border-dashed border-border py-3"
               >
-                <span className="font-body text-foreground">{expense.label}</span>
+                <input
+                  value={expense.label}
+                  onChange={(e) => updateExpense(expense.id, "label", e.target.value)}
+                  className="flex-1 bg-transparent font-body text-foreground outline-none border-b border-transparent focus:border-foreground transition-colors"
+                />
                 <div className="flex items-center gap-3">
-                  <span className="font-body text-muted-foreground">
-                    {formatCurrency(expense.amount)}
-                  </span>
+                  <div className="relative">
+                    <DollarSign className="absolute left-0 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="number"
+                      value={expense.amount || ""}
+                      onChange={(e) => updateExpense(expense.id, "amount", e.target.value)}
+                      className="w-24 bg-transparent pl-4 text-right font-body text-muted-foreground outline-none border-b border-transparent focus:border-foreground focus:text-foreground transition-colors"
+                    />
+                  </div>
                   <button
                     onClick={() => removeExpense(expense.id)}
                     className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
