@@ -64,6 +64,13 @@ const Index = () => {
     );
   };
 
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n);
+
   const exportPDF = useCallback(() => {
     const doc = new jsPDF();
     const fc = formatCurrency;
