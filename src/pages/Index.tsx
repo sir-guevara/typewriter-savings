@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank } from "lucide-react";
+import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface ExpenseItem {
   id: string;
