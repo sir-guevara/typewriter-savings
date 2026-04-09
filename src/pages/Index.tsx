@@ -165,6 +165,17 @@ const Index = () => {
           income — expenses — savings projection
         </p>
 
+        {/* Export button */}
+        <div className="mb-8 flex justify-end">
+          <button
+            onClick={exportPDF}
+            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export PDF
+          </button>
+        </div>
+
         {/* Income */}
         <section className="mb-10">
           <label className="mb-2 block font-display text-lg text-foreground">
