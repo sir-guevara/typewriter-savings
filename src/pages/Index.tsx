@@ -47,6 +47,21 @@ const Index = () => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
+  const updateExpense = (id: string, field: "label" | "amount", value: string) => {
+    setExpenses((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              ...(field === "label"
+                ? { label: value }
+                : { amount: parseFloat(value) || 0 }),
+            }
+          : e
+      )
+    );
+  };
+
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
