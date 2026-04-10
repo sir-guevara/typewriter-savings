@@ -38,7 +38,7 @@ const Index = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate }));
   }, [income, expenses, years, interestRate]);
 
-
+  const monthlySavings = income - totalExpenses;
   const yearlySavings = monthlySavings * 12;
 
   const projectedSavings = useMemo(() => {
