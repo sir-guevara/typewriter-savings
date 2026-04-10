@@ -38,6 +38,9 @@ const Index = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate, savingsGoal }));
   }, [income, expenses, years, interestRate, savingsGoal]);
 
+  const monthlySavings = income - totalExpenses;
+  const yearlySavings = monthlySavings * 12;
+
   const timeToGoal = useMemo(() => {
     if (savingsGoal <= 0 || monthlySavings <= 0) return null;
     const r = interestRate / 100 / 12;
@@ -45,7 +48,6 @@ const Index = () => {
       const months = savingsGoal / monthlySavings;
       return months;
     }
-    // FV = P * ((1+r)^n - 1) / r => n = ln(FV*r/P + 1) / ln(1+r)
     const n = Math.log((savingsGoal * r) / monthlySavings + 1) / Math.log(1 + r);
     return n;
   }, [savingsGoal, monthlySavings, interestRate]);
@@ -57,9 +59,6 @@ const Index = () => {
     if (m === 0) return `${y} year${y !== 1 ? "s" : ""}`;
     return `${y} year${y !== 1 ? "s" : ""} ${m} month${m !== 1 ? "s" : ""}`;
   };
-
-  const monthlySavings = income - totalExpenses;
-  const yearlySavings = monthlySavings * 12;
 
   const projectedSavings = useMemo(() => {
     if (monthlySavings <= 0) return 0;
