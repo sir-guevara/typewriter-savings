@@ -3,14 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-interface ExpenseItem {
-  id: string;
-  label: string;
-  amount: number;
-}
-
-const STORAGE_KEY = "expense-tracker-data";
+import ExpenseAnalysis from "@/components/ExpenseAnalysis";
+import { CATEGORIES, STORAGE_KEY } from "@/lib/constants";
+import type { Category } from "@/lib/constants";
+import type { ExpenseItem } from "@/lib/types";
 
 const loadState = () => {
   try {
@@ -23,9 +19,12 @@ const loadState = () => {
 const Index = () => {
   const saved = loadState();
   const [income, setIncome] = useState<number>(saved?.income ?? 0);
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(saved?.expenses ?? []);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(
+    () => (saved?.expenses ?? []).map((e: any) => ({ ...e, category: e.category || "Other" }))
+  );
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
+  const [newCategory, setNewCategory] = useState<Category>("Other");
   const [years, setYears] = useState<number>(saved?.years ?? 5);
   const [interestRate, setInterestRate] = useState<number>(saved?.interestRate ?? 7);
 
@@ -54,7 +53,7 @@ const Index = () => {
     if (!newLabel.trim() || isNaN(amount) || amount <= 0) return;
     setExpenses((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), label: newLabel.trim(), amount },
+      { id: crypto.randomUUID(), label: newLabel.trim(), amount, category: newCategory },
     ]);
     setNewLabel("");
     setNewAmount("");
@@ -64,7 +63,7 @@ const Index = () => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const updateExpense = (id: string, field: "label" | "amount", value: string) => {
+  const updateExpense = (id: string, field: "label" | "amount" | "category", value: string) => {
     setExpenses((prev) =>
       prev.map((e) =>
         e.id === id
@@ -72,6 +71,8 @@ const Index = () => {
               ...e,
               ...(field === "label"
                 ? { label: value }
+                : field === "category"
+                ? { category: value as Category }
                 : { amount: parseFloat(value) || 0 }),
             }
           : e
@@ -101,7 +102,6 @@ const Index = () => {
     doc.text(`Generated ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
     y += 16;
 
-    // Income
     doc.setFontSize(14);
     doc.setFont("courier", "bold");
     doc.text("Monthly Income", 14, y);
@@ -111,7 +111,6 @@ const Index = () => {
     doc.text(fc(income), 14, y);
     y += 14;
 
-    // Expenses table
     if (expenses.length > 0) {
       doc.setFontSize(14);
       doc.setFont("courier", "bold");
@@ -120,10 +119,14 @@ const Index = () => {
 
       autoTable(doc, {
         startY: y,
-        head: [["Expense", "Amount"]],
+        head: [["Expense", "Category", "Amount"]],
         body: [
-          ...expenses.map((e) => [e.label, fc(e.amount)]),
-          [{ content: "Total", styles: { fontStyle: "bold" } }, { content: fc(totalExpenses), styles: { fontStyle: "bold" } }],
+          ...expenses.map((e) => [e.label, e.category, fc(e.amount)]),
+          [
+            { content: "Total", styles: { fontStyle: "bold" } },
+            "",
+            { content: fc(totalExpenses), styles: { fontStyle: "bold" } },
+          ],
         ],
         styles: { font: "courier", fontSize: 10 },
         headStyles: { fillColor: [45, 45, 45] },
@@ -133,7 +136,6 @@ const Index = () => {
       y = (doc as any).lastAutoTable.finalY + 14;
     }
 
-    // Summary
     doc.setFontSize(14);
     doc.setFont("courier", "bold");
     doc.text("Monthly Savings", 14, y);
@@ -146,7 +148,6 @@ const Index = () => {
     doc.text(`${fc(yearlySavings)} per year`, 14, y);
     y += 14;
 
-    // Projection
     doc.setFontSize(14);
     doc.setFont("courier", "bold");
     doc.text("Savings Projection", 14, y);
@@ -158,13 +159,9 @@ const Index = () => {
     doc.setFontSize(16);
     doc.setFont("courier", "bold");
     doc.text(fc(projectedSavings), 14, y);
-    y += 6;
-    doc.setFont("courier", "normal");
-    doc.setFontSize(9);
-    doc.text("with compound interest (monthly contributions)", 14, y);
 
     doc.save("expense-tracker.pdf");
-  }, [income, expenses, totalExpenses, monthlySavings, yearlySavings, projectedSavings, years, interestRate, formatCurrency]);
+  }, [income, expenses, totalExpenses, monthlySavings, yearlySavings, projectedSavings, years, interestRate]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-12 md:py-20">
@@ -180,7 +177,6 @@ const Index = () => {
           income — expenses — savings projection
         </p>
 
-        {/* Export button */}
         <div className="mb-8 flex justify-end">
           <button
             onClick={exportPDF}
@@ -214,15 +210,24 @@ const Index = () => {
             Monthly Expenses
           </label>
 
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             <input
               type="text"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder="Label"
               onKeyDown={(e) => e.key === "Enter" && addExpense()}
-              className="flex-1 border-b-2 border-border bg-transparent py-2 font-body text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+              className="flex-1 min-w-[120px] border-b-2 border-border bg-transparent py-2 font-body text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
             />
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value as Category)}
+              className="border-b-2 border-border bg-transparent py-2 font-body text-sm text-foreground outline-none focus:border-foreground"
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
             <div className="relative">
               <DollarSign className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -249,13 +254,22 @@ const Index = () => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="group flex items-center justify-between border-b border-dashed border-border py-3"
+                className="group flex items-center justify-between border-b border-dashed border-border py-3 gap-2"
               >
                 <input
                   value={expense.label}
                   onChange={(e) => updateExpense(expense.id, "label", e.target.value)}
-                  className="flex-1 bg-transparent font-body text-foreground outline-none border-b border-transparent focus:border-foreground transition-colors"
+                  className="flex-1 min-w-0 bg-transparent font-body text-foreground outline-none border-b border-transparent focus:border-foreground transition-colors"
                 />
+                <select
+                  value={expense.category}
+                  onChange={(e) => updateExpense(expense.id, "category", e.target.value)}
+                  className="bg-transparent font-body text-xs text-muted-foreground outline-none border-b border-transparent focus:border-foreground transition-colors"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <DollarSign className="absolute left-0 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
@@ -326,9 +340,7 @@ const Index = () => {
 
           <div className="mb-6 grid grid-cols-2 gap-6">
             <div>
-              <label className="mb-1 block font-body text-xs text-muted-foreground">
-                Years
-              </label>
+              <label className="mb-1 block font-body text-xs text-muted-foreground">Years</label>
               <input
                 type="number"
                 min={1}
@@ -339,18 +351,14 @@ const Index = () => {
               />
             </div>
             <div>
-              <label className="mb-1 block font-body text-xs text-muted-foreground">
-                Interest Rate (%)
-              </label>
+              <label className="mb-1 block font-body text-xs text-muted-foreground">Interest Rate (%)</label>
               <input
                 type="number"
                 min={0}
                 max={30}
                 step={0.5}
                 value={interestRate}
-                onChange={(e) =>
-                  setInterestRate(Math.max(0, parseFloat(e.target.value) || 0))
-                }
+                onChange={(e) => setInterestRate(Math.max(0, parseFloat(e.target.value) || 0))}
                 className="w-full border-b-2 border-border bg-transparent py-2 font-body text-lg text-foreground outline-none focus:border-foreground"
               />
             </div>
@@ -372,6 +380,9 @@ const Index = () => {
             </p>
           </div>
         </motion.section>
+
+        {/* Category Analysis */}
+        <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
 
         <p className="mt-12 text-center font-body text-xs text-muted-foreground">
           all data stays in your browser
