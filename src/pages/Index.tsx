@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download } from "lucide-react";
 import jsPDF from "jspdf";
