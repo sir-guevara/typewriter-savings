@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import SavingsChart from "@/components/SavingsChart";
 import ExpenseAnalysis from "@/components/ExpenseAnalysis";
 import { CATEGORIES, STORAGE_KEY } from "@/lib/constants";
 import type { Category } from "@/lib/constants";
@@ -446,6 +447,15 @@ const Index = () => {
             </div>
           )}
         </motion.section>
+
+        {/* Savings Growth Chart */}
+        <SavingsChart
+          monthlySavings={monthlySavings}
+          interestRate={interestRate}
+          years={years}
+          savingsGoal={savingsGoal}
+          formatCurrency={formatCurrency}
+        />
 
         {/* Category Analysis */}
         <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
