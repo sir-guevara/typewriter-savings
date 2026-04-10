@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download } from "lucide-react";
 import jsPDF from "jspdf";
@@ -10,18 +10,33 @@ interface ExpenseItem {
   amount: number;
 }
 
+const STORAGE_KEY = "expense-tracker-data";
+
+const loadState = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+};
+
 const Index = () => {
-  const [income, setIncome] = useState<number>(0);
-  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const saved = loadState();
+  const [income, setIncome] = useState<number>(saved?.income ?? 0);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(saved?.expenses ?? []);
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
-  const [years, setYears] = useState<number>(5);
-  const [interestRate, setInterestRate] = useState<number>(7);
+  const [years, setYears] = useState<number>(saved?.years ?? 5);
+  const [interestRate, setInterestRate] = useState<number>(saved?.interestRate ?? 7);
 
   const totalExpenses = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
     [expenses]
   );
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate }));
+  }, [income, expenses, years, interestRate]);
 
   const monthlySavings = income - totalExpenses;
   const yearlySavings = monthlySavings * 12;
