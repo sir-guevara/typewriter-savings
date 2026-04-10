@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download } from "lucide-react";
+import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExpenseAnalysis from "@/components/ExpenseAnalysis";
@@ -27,6 +27,7 @@ const Index = () => {
   const [newCategory, setNewCategory] = useState<Category>("Other");
   const [years, setYears] = useState<number>(saved?.years ?? 5);
   const [interestRate, setInterestRate] = useState<number>(saved?.interestRate ?? 7);
+  const [savingsGoal, setSavingsGoal] = useState<number>(saved?.savingsGoal ?? 0);
 
   const totalExpenses = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
@@ -34,8 +35,28 @@ const Index = () => {
   );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate }));
-  }, [income, expenses, years, interestRate]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate, savingsGoal }));
+  }, [income, expenses, years, interestRate, savingsGoal]);
+
+  const timeToGoal = useMemo(() => {
+    if (savingsGoal <= 0 || monthlySavings <= 0) return null;
+    const r = interestRate / 100 / 12;
+    if (r === 0) {
+      const months = savingsGoal / monthlySavings;
+      return months;
+    }
+    // FV = P * ((1+r)^n - 1) / r => n = ln(FV*r/P + 1) / ln(1+r)
+    const n = Math.log((savingsGoal * r) / monthlySavings + 1) / Math.log(1 + r);
+    return n;
+  }, [savingsGoal, monthlySavings, interestRate]);
+
+  const formatTimeToGoal = (months: number) => {
+    const y = Math.floor(months / 12);
+    const m = Math.ceil(months % 12);
+    if (y === 0) return `${m} month${m !== 1 ? "s" : ""}`;
+    if (m === 0) return `${y} year${y !== 1 ? "s" : ""}`;
+    return `${y} year${y !== 1 ? "s" : ""} ${m} month${m !== 1 ? "s" : ""}`;
+  };
 
   const monthlySavings = income - totalExpenses;
   const yearlySavings = monthlySavings * 12;
@@ -379,6 +400,52 @@ const Index = () => {
               with compound interest (monthly contributions)
             </p>
           </div>
+        </motion.section>
+
+        {/* Savings Goal */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35 }}
+          className="mt-10 rounded-sm border border-border bg-card p-6"
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <Target className="h-5 w-5 text-foreground" />
+            <h2 className="font-display text-lg text-foreground">Savings Goal</h2>
+          </div>
+
+          <div className="relative mb-6">
+            <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="number"
+              value={savingsGoal || ""}
+              onChange={(e) => setSavingsGoal(parseFloat(e.target.value) || 0)}
+              placeholder="Enter your target amount"
+              className="w-full border-b-2 border-border bg-transparent py-3 pl-9 pr-3 font-body text-xl text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground"
+            />
+          </div>
+
+          {savingsGoal > 0 && (
+            <div className="border-t border-dashed border-border pt-4">
+              {monthlySavings <= 0 ? (
+                <p className="font-body text-sm text-destructive">
+                  You need positive monthly savings to reach your goal
+                </p>
+              ) : timeToGoal !== null ? (
+                <>
+                  <p className="font-body text-xs text-muted-foreground">
+                    At {formatCurrency(monthlySavings)}/mo with {interestRate}% return
+                  </p>
+                  <p className="mt-1 font-body text-3xl font-bold text-success">
+                    {formatTimeToGoal(timeToGoal)}
+                  </p>
+                  <p className="mt-1 font-body text-xs text-muted-foreground">
+                    to reach {formatCurrency(savingsGoal)}
+                  </p>
+                </>
+              ) : null}
+            </div>
+          )}
         </motion.section>
 
         {/* Category Analysis */}
