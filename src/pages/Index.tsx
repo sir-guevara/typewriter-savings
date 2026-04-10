@@ -10,13 +10,24 @@ interface ExpenseItem {
   amount: number;
 }
 
+const STORAGE_KEY = "expense-tracker-data";
+
+const loadState = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+};
+
 const Index = () => {
-  const [income, setIncome] = useState<number>(0);
-  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const saved = loadState();
+  const [income, setIncome] = useState<number>(saved?.income ?? 0);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(saved?.expenses ?? []);
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
-  const [years, setYears] = useState<number>(5);
-  const [interestRate, setInterestRate] = useState<number>(7);
+  const [years, setYears] = useState<number>(saved?.years ?? 5);
+  const [interestRate, setInterestRate] = useState<number>(saved?.interestRate ?? 7);
 
   const totalExpenses = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
