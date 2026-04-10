@@ -4,6 +4,7 @@ import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target } fro
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
+import ExpenseAnalysis from "@/components/ExpenseAnalysis";
 import { CATEGORIES, STORAGE_KEY } from "@/lib/constants";
 import type { Category } from "@/lib/constants";
 import type { ExpenseItem } from "@/lib/types";
