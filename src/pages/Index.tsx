@@ -461,7 +461,7 @@ const Index = () => {
         <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
 
         <p className="mt-12 text-center font-body text-xs text-muted-foreground">
-          all data stays in your browser
+          all data stays in your browser <b></>(by Sir Guevara)</b>
         </p>
       </div>
     </div>
