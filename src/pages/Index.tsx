@@ -5,7 +5,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
 import ExpenseAnalysis from "@/components/ExpenseAnalysis";
-import { CATEGORIES, STORAGE_KEY } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_ICONS, STORAGE_KEY } from "@/lib/constants";
 import type { Category } from "@/lib/constants";
 import type { ExpenseItem } from "@/lib/types";
 
@@ -245,9 +245,10 @@ const Index = () => {
               onChange={(e) => setNewCategory(e.target.value as Category)}
               className="border-b-2 border-border bg-transparent py-2 font-body text-sm text-foreground outline-none focus:border-foreground"
             >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+              {CATEGORIES.map((cat) => {
+                const Icon = CATEGORY_ICONS[cat];
+                return <option key={cat} value={cat}>{cat}</option>;
+              })}
             </select>
             <div className="relative">
               <DollarSign className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
@@ -269,7 +270,9 @@ const Index = () => {
           </div>
 
           <AnimatePresence>
-            {expenses.map((expense) => (
+          {expenses.map((expense) => {
+              const CatIcon = CATEGORY_ICONS[expense.category];
+              return (
               <motion.div
                 key={expense.id}
                 initial={{ opacity: 0, x: -10 }}
@@ -277,6 +280,7 @@ const Index = () => {
                 exit={{ opacity: 0, x: 10 }}
                 className="group flex items-center justify-between border-b border-dashed border-border py-3 gap-2"
               >
+                <CatIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <input
                   value={expense.label}
                   onChange={(e) => updateExpense(expense.id, "label", e.target.value)}
@@ -309,7 +313,8 @@ const Index = () => {
                   </button>
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
           </AnimatePresence>
 
           {expenses.length > 0 && (
@@ -461,7 +466,7 @@ const Index = () => {
         <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
 
         <p className="mt-12 text-center font-body text-xs text-muted-foreground">
-          all data stays in your browser <b></>(by Sir Guevara)</b>
+          all data stays in your browser · <b>by Sir Guevara</b>
         </p>
       </div>
     </div>
