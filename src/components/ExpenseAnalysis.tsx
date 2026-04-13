@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { BarChart3 } from "lucide-react";
 import type { ExpenseItem } from "@/lib/types";
 import type { Category } from "@/lib/constants";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_ICONS } from "@/lib/constants";
 
 interface Props {
   expenses: ExpenseItem[];
@@ -43,39 +43,55 @@ const ExpenseAnalysis = ({ expenses, formatCurrency }: Props) => {
       </div>
 
       <div className="space-y-4">
-        {categoryData.map((item) => (
-          <div key={item.category}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-body text-sm text-foreground">{item.category}</span>
-              <div className="flex items-center gap-3">
-                <span className="font-body text-xs text-muted-foreground">
-                  {item.percentage.toFixed(1)}%
-                </span>
-                <span className="font-body text-sm font-bold text-foreground w-24 text-right">
-                  {formatCurrency(item.amount)}
-                </span>
+        {categoryData.map((item) => {
+          const Icon = CATEGORY_ICONS[item.category];
+          return (
+            <div key={item.category}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-body text-sm text-foreground">{item.category}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-body text-xs text-muted-foreground">
+                    {item.percentage.toFixed(1)}%
+                  </span>
+                  <span className="font-body text-sm font-bold text-foreground w-24 text-right">
+                    {formatCurrency(item.amount)}
+                  </span>
+                </div>
+              </div>
+              <div className="h-2 w-full rounded-sm bg-muted overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(item.amount / maxAmount) * 100}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full rounded-sm bg-foreground/70"
+                />
               </div>
             </div>
-            <div className="h-2 w-full rounded-sm bg-muted overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(item.amount / maxAmount) * 100}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="h-full rounded-sm bg-foreground/70"
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-6 border-t border-dashed border-border pt-4">
-        <p className="font-body text-xs text-muted-foreground mb-2">Top spending category</p>
-        <p className="font-display text-lg text-foreground">
-          {categoryData[0].category}
-        </p>
-        <p className="font-body text-sm text-muted-foreground">
-          {formatCurrency(categoryData[0].amount)} · {categoryData[0].percentage.toFixed(1)}% of total
-        </p>
+        {(() => {
+          const TopIcon = CATEGORY_ICONS[categoryData[0].category];
+          return (
+            <>
+              <p className="font-body text-xs text-muted-foreground mb-2">Top spending category</p>
+              <div className="flex items-center gap-2">
+                <TopIcon className="h-4 w-4 text-foreground" />
+                <p className="font-display text-lg text-foreground">
+                  {categoryData[0].category}
+                </p>
+              </div>
+              <p className="font-body text-sm text-muted-foreground">
+                {formatCurrency(categoryData[0].amount)} · {categoryData[0].percentage.toFixed(1)}% of total
+              </p>
+            </>
+          );
+        })()}
       </div>
     </motion.section>
   );
