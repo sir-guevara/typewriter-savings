@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   GraduationCap,
   Users,
+  Package,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ export const CATEGORIES = [
   "Shopping",
   "Education",
   "Family",
+  "Miscellaneous",
   "Other",
 ] as const;
 
@@ -36,6 +38,7 @@ export const CATEGORY_ICONS: Record<Category, typeof Home> = {
   Shopping: ShoppingBag,
   Education: GraduationCap,
   Family: Users,
+  Miscellaneous: Package,
   Other: MoreHorizontal,
 };
 
