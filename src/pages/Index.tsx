@@ -5,7 +5,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
 import ExpenseAnalysis from "@/components/ExpenseAnalysis";
-import { CATEGORIES, STORAGE_KEY } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_ICONS, STORAGE_KEY } from "@/lib/constants";
 import type { Category } from "@/lib/constants";
 import type { ExpenseItem } from "@/lib/types";
 
@@ -461,7 +461,7 @@ const Index = () => {
         <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
 
         <p className="mt-12 text-center font-body text-xs text-muted-foreground">
-          all data stays in your browser <b></>(by Sir Guevara)</b>
+          all data stays in your browser · <b>by Sir Guevara</b>
         </p>
       </div>
     </div>
