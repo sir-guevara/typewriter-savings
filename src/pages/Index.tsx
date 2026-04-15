@@ -6,6 +6,7 @@ import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
 import ExpenseAnalysis from "@/components/ExpenseAnalysis";
 import DebtTracker from "@/components/DebtTracker";
+import DebtChart from "@/components/DebtChart";
 import type { DebtItem } from "@/components/DebtTracker";
 import { CATEGORIES, CATEGORY_ICONS, STORAGE_KEY } from "@/lib/constants";
 import type { Category } from "@/lib/constants";
@@ -467,6 +468,7 @@ const Index = () => {
 
         {/* Debt Payoff */}
         <DebtTracker debts={debts} setDebts={setDebts} formatCurrency={formatCurrency} />
+        <DebtChart debts={debts} formatCurrency={formatCurrency} />
 
         {/* Category Analysis */}
         <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
