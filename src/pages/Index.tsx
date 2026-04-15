@@ -487,7 +487,7 @@ const Index = () => {
         <DebtChart debts={debts} formatCurrency={formatCurrency} />
 
         {/* Category Analysis */}
-        <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
+        <ExpenseAnalysis expenses={expenses} totalDebtPayments={totalDebtPayments} formatCurrency={formatCurrency} />
 
         <p className="mt-12 text-center font-body text-xs text-muted-foreground">
           all data stays in your browser · <b>by Sir Guevara</b>

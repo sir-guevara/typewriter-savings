@@ -1,30 +1,49 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Landmark } from "lucide-react";
 import type { ExpenseItem } from "@/lib/types";
 import type { Category } from "@/lib/constants";
 import { CATEGORIES, CATEGORY_ICONS } from "@/lib/constants";
 
 interface Props {
   expenses: ExpenseItem[];
+  totalDebtPayments?: number;
   formatCurrency: (n: number) => string;
 }
 
-const ExpenseAnalysis = ({ expenses, formatCurrency }: Props) => {
+type BreakdownItem = {
+  label: string;
+  amount: number;
+  percentage: number;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const ExpenseAnalysis = ({ expenses, totalDebtPayments = 0, formatCurrency }: Props) => {
   const categoryData = useMemo(() => {
     const totals = new Map<Category, number>();
     for (const e of expenses) {
       totals.set(e.category, (totals.get(e.category) || 0) + e.amount);
     }
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    return CATEGORIES.map((cat) => ({
-      category: cat,
+    const grandTotal = expenses.reduce((s, e) => s + e.amount, 0) + totalDebtPayments;
+
+    const items: BreakdownItem[] = CATEGORIES.map((cat) => ({
+      label: cat,
       amount: totals.get(cat) || 0,
-      percentage: totalExpenses > 0 ? ((totals.get(cat) || 0) / totalExpenses) * 100 : 0,
-    }))
-      .filter((d) => d.amount > 0)
-      .sort((a, b) => b.amount - a.amount);
-  }, [expenses]);
+      percentage: grandTotal > 0 ? ((totals.get(cat) || 0) / grandTotal) * 100 : 0,
+      icon: CATEGORY_ICONS[cat],
+    })).filter((d) => d.amount > 0);
+
+    if (totalDebtPayments > 0) {
+      items.push({
+        label: "Debt Payments",
+        amount: totalDebtPayments,
+        percentage: grandTotal > 0 ? (totalDebtPayments / grandTotal) * 100 : 0,
+        icon: Landmark,
+      });
+    }
+
+    return items.sort((a, b) => b.amount - a.amount);
+  }, [expenses, totalDebtPayments]);
 
   if (categoryData.length === 0) return null;
 
@@ -44,13 +63,13 @@ const ExpenseAnalysis = ({ expenses, formatCurrency }: Props) => {
 
       <div className="space-y-4">
         {categoryData.map((item) => {
-          const Icon = CATEGORY_ICONS[item.category];
+          const Icon = item.icon;
           return (
-            <div key={item.category}>
+            <div key={item.label}>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-body text-sm text-foreground">{item.category}</span>
+                  <span className="font-body text-sm text-foreground">{item.label}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-body text-xs text-muted-foreground">
@@ -76,14 +95,14 @@ const ExpenseAnalysis = ({ expenses, formatCurrency }: Props) => {
 
       <div className="mt-6 border-t border-dashed border-border pt-4">
         {(() => {
-          const TopIcon = CATEGORY_ICONS[categoryData[0].category];
+          const TopIcon = categoryData[0].icon;
           return (
             <>
               <p className="font-body text-xs text-muted-foreground mb-2">Top spending category</p>
               <div className="flex items-center gap-2">
                 <TopIcon className="h-4 w-4 text-foreground" />
                 <p className="font-display text-lg text-foreground">
-                  {categoryData[0].category}
+                  {categoryData[0].label}
                 </p>
               </div>
               <p className="font-body text-sm text-muted-foreground">
