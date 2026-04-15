@@ -360,6 +360,11 @@ const Index = () => {
           >
             {formatCurrency(monthlySavings)}
           </p>
+          {totalDebtPayments > 0 && (
+            <p className="mt-2 font-body text-xs text-muted-foreground">
+              incl. {formatCurrency(totalDebtPayments)}/mo in debt payments
+            </p>
+          )}
           <p className="mt-1 font-body text-xs text-muted-foreground">
             {monthlySavings >= 0
               ? `${formatCurrency(yearlySavings)} per year`
