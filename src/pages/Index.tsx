@@ -39,11 +39,22 @@ const Index = () => {
     [expenses]
   );
 
+  const totalDebtPayments = useMemo(() => {
+    return debts.reduce((sum, d) => {
+      if (d.mode === "months") {
+        const r = d.apr / 100 / 12;
+        if (r === 0) return sum + d.balance / d.targetMonths;
+        return sum + (d.balance * r * Math.pow(1 + r, d.targetMonths)) / (Math.pow(1 + r, d.targetMonths) - 1);
+      }
+      return sum + d.monthlyPayment;
+    }, 0);
+  }, [debts]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate, savingsGoal, debts }));
   }, [income, expenses, years, interestRate, savingsGoal, debts]);
 
-  const monthlySavings = income - totalExpenses;
+  const monthlySavings = income - totalExpenses - totalDebtPayments;
   const yearlySavings = monthlySavings * 12;
 
   const timeToGoal = useMemo(() => {
@@ -349,6 +360,11 @@ const Index = () => {
           >
             {formatCurrency(monthlySavings)}
           </p>
+          {totalDebtPayments > 0 && (
+            <p className="mt-2 font-body text-xs text-muted-foreground">
+              incl. {formatCurrency(totalDebtPayments)}/mo in debt payments
+            </p>
+          )}
           <p className="mt-1 font-body text-xs text-muted-foreground">
             {monthlySavings >= 0
               ? `${formatCurrency(yearlySavings)} per year`
