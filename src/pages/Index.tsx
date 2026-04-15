@@ -5,6 +5,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
 import ExpenseAnalysis from "@/components/ExpenseAnalysis";
+import DebtTracker from "@/components/DebtTracker";
+import type { DebtItem } from "@/components/DebtTracker";
 import { CATEGORIES, CATEGORY_ICONS, STORAGE_KEY } from "@/lib/constants";
 import type { Category } from "@/lib/constants";
 import type { ExpenseItem } from "@/lib/types";
@@ -29,6 +31,7 @@ const Index = () => {
   const [years, setYears] = useState<number>(saved?.years ?? 5);
   const [interestRate, setInterestRate] = useState<number>(saved?.interestRate ?? 7);
   const [savingsGoal, setSavingsGoal] = useState<number>(saved?.savingsGoal ?? 0);
+  const [debts, setDebts] = useState<DebtItem[]>(saved?.debts ?? []);
 
   const totalExpenses = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
@@ -36,8 +39,8 @@ const Index = () => {
   );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate, savingsGoal }));
-  }, [income, expenses, years, interestRate, savingsGoal]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate, savingsGoal, debts }));
+  }, [income, expenses, years, interestRate, savingsGoal, debts]);
 
   const monthlySavings = income - totalExpenses;
   const yearlySavings = monthlySavings * 12;
@@ -461,6 +464,9 @@ const Index = () => {
           savingsGoal={savingsGoal}
           formatCurrency={formatCurrency}
         />
+
+        {/* Debt Payoff */}
+        <DebtTracker debts={debts} setDebts={setDebts} formatCurrency={formatCurrency} />
 
         {/* Category Analysis */}
         <ExpenseAnalysis expenses={expenses} formatCurrency={formatCurrency} />
