@@ -201,6 +201,27 @@ const Index = () => {
     doc.save("expense-tracker.pdf");
   }, [income, expenses, totalExpenses, monthlySavings, yearlySavings, projectedSavings, years, interestRate]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const exportCSV = useCallback(() => {
+    downloadCSV(expensesToCSV(expenses));
+    toast({ title: "CSV exported", description: `${expenses.length} expense${expenses.length !== 1 ? "s" : ""} saved.` });
+  }, [expenses]);
+
+  const importCSV = async (file: File) => {
+    try {
+      const imported = csvToExpenses(await file.text());
+      if (imported.length === 0) {
+        toast({ title: "Nothing imported", description: "No valid rows found in that file.", variant: "destructive" });
+        return;
+      }
+      setExpenses((prev) => [...prev, ...imported]);
+      toast({ title: "CSV imported", description: `Added ${imported.length} expense${imported.length !== 1 ? "s" : ""}.` });
+    } catch {
+      toast({ title: "Import failed", description: "That file could not be read.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background px-4 py-12 md:py-20">
       <div className="mx-auto max-w-2xl">
