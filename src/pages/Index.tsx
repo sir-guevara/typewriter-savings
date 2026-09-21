@@ -236,7 +236,32 @@ const Index = () => {
           income — expenses — savings projection
         </p>
 
-        <div className="mb-8 flex justify-end">
+        <div className="mb-8 flex flex-wrap justify-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importCSV(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Import CSV
+          </button>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Export CSV
+          </button>
           <button
             onClick={exportPDF}
             className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
