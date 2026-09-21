@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target } from "lucide-react";
+import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target, FileSpreadsheet, Upload } from "lucide-react";
+import { expensesToCSV, csvToExpenses, downloadCSV } from "@/lib/csv";
+import { toast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
@@ -199,6 +201,27 @@ const Index = () => {
     doc.save("expense-tracker.pdf");
   }, [income, expenses, totalExpenses, monthlySavings, yearlySavings, projectedSavings, years, interestRate]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const exportCSV = useCallback(() => {
+    downloadCSV(expensesToCSV(expenses));
+    toast({ title: "CSV exported", description: `${expenses.length} expense${expenses.length !== 1 ? "s" : ""} saved.` });
+  }, [expenses]);
+
+  const importCSV = async (file: File) => {
+    try {
+      const imported = csvToExpenses(await file.text());
+      if (imported.length === 0) {
+        toast({ title: "Nothing imported", description: "No valid rows found in that file.", variant: "destructive" });
+        return;
+      }
+      setExpenses((prev) => [...prev, ...imported]);
+      toast({ title: "CSV imported", description: `Added ${imported.length} expense${imported.length !== 1 ? "s" : ""}.` });
+    } catch {
+      toast({ title: "Import failed", description: "That file could not be read.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background px-4 py-12 md:py-20">
       <div className="mx-auto max-w-2xl">
@@ -213,7 +236,32 @@ const Index = () => {
           income — expenses — savings projection
         </p>
 
-        <div className="mb-8 flex justify-end">
+        <div className="mb-8 flex flex-wrap justify-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importCSV(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Import CSV
+          </button>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Export CSV
+          </button>
           <button
             onClick={exportPDF}
             className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
