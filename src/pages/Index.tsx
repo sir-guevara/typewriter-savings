@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target, FileSpreadsheet, Upload } from "lucide-react";
-import { expensesToCSV, csvToExpenses, downloadCSV } from "@/lib/csv";
+import { expensesToCSV, parseCSV, downloadCSV } from "@/lib/csv";
 import { toast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -204,19 +204,26 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const exportCSV = useCallback(() => {
-    downloadCSV(expensesToCSV(expenses));
-    toast({ title: "CSV exported", description: `${expenses.length} expense${expenses.length !== 1 ? "s" : ""} saved.` });
-  }, [expenses]);
+    downloadCSV(expensesToCSV(expenses, debts));
+    toast({
+      title: "CSV exported",
+      description: `${expenses.length} expense${expenses.length !== 1 ? "s" : ""} and ${debts.length} debt${debts.length !== 1 ? "s" : ""} saved.`,
+    });
+  }, [expenses, debts]);
 
   const importCSV = async (file: File) => {
     try {
-      const imported = csvToExpenses(await file.text());
-      if (imported.length === 0) {
+      const imported = parseCSV(await file.text());
+      if (imported.expenses.length === 0 && imported.debts.length === 0) {
         toast({ title: "Nothing imported", description: "No valid rows found in that file.", variant: "destructive" });
         return;
       }
-      setExpenses((prev) => [...prev, ...imported]);
-      toast({ title: "CSV imported", description: `Added ${imported.length} expense${imported.length !== 1 ? "s" : ""}.` });
+      setExpenses((prev) => [...prev, ...imported.expenses]);
+      setDebts((prev) => [...prev, ...imported.debts]);
+      toast({
+        title: "CSV imported",
+        description: `Added ${imported.expenses.length} expense${imported.expenses.length !== 1 ? "s" : ""} and ${imported.debts.length} debt${imported.debts.length !== 1 ? "s" : ""}.`,
+      });
     } catch {
       toast({ title: "Import failed", description: "That file could not be read.", variant: "destructive" });
     }

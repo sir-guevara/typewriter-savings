@@ -1,11 +1,20 @@
 import { CATEGORIES } from "./constants";
 import type { Category } from "./constants";
 import type { ExpenseItem } from "./types";
+import type { DebtItem } from "@/components/DebtTracker";
 
 const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
 
-export const expensesToCSV = (expenses: ExpenseItem[]) =>
-  ["Label,Category,Amount", ...expenses.map((e) => [esc(e.label), esc(e.category), e.amount].join(","))].join("\n");
+export const expensesToCSV = (expenses: ExpenseItem[], debts: DebtItem[] = []) => {
+  const rows = [
+    "Type,Label,Category,Amount,APR,Mode,TargetMonths,MonthlyPayment",
+    ...expenses.map((e) => ["Expense", esc(e.label), esc(e.category), e.amount, "", "", "", ""].join(",")),
+    ...debts.map((d) =>
+      ["Debt", esc(d.name), "", d.balance, d.apr, d.mode, d.mode === "months" ? d.targetMonths : "", d.mode === "payment" ? d.monthlyPayment : ""].join(",")
+    ),
+  ];
+  return rows.join("\n");
+};
 
 export const downloadCSV = (csv: string, filename = "expenses.csv") => {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -40,22 +49,58 @@ const parseLine = (line: string) => {
   return out.map((s) => s.trim());
 };
 
-export const csvToExpenses = (text: string): ExpenseItem[] => {
+const num = (v: string | undefined) => parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+
+export const parseCSV = (text: string): { expenses: ExpenseItem[]; debts: DebtItem[] } => {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return [];
-  const start = /label/i.test(lines[0]) && /amount/i.test(lines[0]) ? 1 : 0;
-  const items: ExpenseItem[] = [];
+  const expenses: ExpenseItem[] = [];
+  const debts: DebtItem[] = [];
+  if (lines.length === 0) return { expenses, debts };
+
+  const header = lines[0].toLowerCase();
+  const hasHeader = /label/i.test(header) && /amount/i.test(header);
+  const hasType = hasHeader && /^\s*"?type"?\s*,/i.test(lines[0]);
+  const start = hasHeader ? 1 : 0;
+
   for (const line of lines.slice(start)) {
-    const [label, category, amount] = parseLine(line);
-    const value = parseFloat(String(amount).replace(/[^0-9.-]/g, ""));
-    if (!label || isNaN(value)) continue;
-    const cat = CATEGORIES.find((c) => c.toLowerCase() === String(category ?? "").toLowerCase());
-    items.push({
-      id: crypto.randomUUID(),
-      label,
-      amount: value,
-      category: (cat ?? "Other") as Category,
-    });
+    const cols = parseLine(line);
+    if (hasType) {
+      const [type, label, category, amount, apr, mode, targetMonths, monthlyPayment] = cols;
+      const value = num(amount);
+      if (!label || isNaN(value)) continue;
+      if (String(type).toLowerCase() === "debt") {
+        const m = String(mode).toLowerCase() === "payment" ? "payment" : "months";
+        debts.push({
+          id: crypto.randomUUID(),
+          name: label,
+          balance: value,
+          apr: isNaN(num(apr)) ? 0 : num(apr),
+          mode: m,
+          targetMonths: isNaN(num(targetMonths)) || num(targetMonths) <= 0 ? 12 : Math.round(num(targetMonths)),
+          monthlyPayment: isNaN(num(monthlyPayment)) || num(monthlyPayment) <= 0 ? 100 : num(monthlyPayment),
+        });
+      } else {
+        const cat = CATEGORIES.find((c) => c.toLowerCase() === String(category ?? "").toLowerCase());
+        expenses.push({
+          id: crypto.randomUUID(),
+          label,
+          amount: value,
+          category: (cat ?? "Other") as Category,
+        });
+      }
+    } else {
+      // Legacy format: Label,Category,Amount
+      const [label, category, amount] = cols;
+      const value = num(amount);
+      if (!label || isNaN(value)) continue;
+      const cat = CATEGORIES.find((c) => c.toLowerCase() === String(category ?? "").toLowerCase());
+      expenses.push({
+        id: crypto.randomUUID(),
+        label,
+        amount: value,
+        category: (cat ?? "Other") as Category,
+      });
+    }
   }
-  return items;
+  return { expenses, debts };
 };
