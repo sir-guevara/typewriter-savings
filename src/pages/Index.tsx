@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target } from "lucide-react";
+import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target, FileSpreadsheet, Upload } from "lucide-react";
+import { expensesToCSV, csvToExpenses, downloadCSV } from "@/lib/csv";
+import { toast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SavingsChart from "@/components/SavingsChart";
