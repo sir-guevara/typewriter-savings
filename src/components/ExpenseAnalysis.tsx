@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Landmark } from "lucide-react";
+import { PieChart as PieChartIcon, Landmark } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import type { ExpenseItem } from "@/lib/types";
 import type { Category } from "@/lib/constants";
 import { CATEGORIES, CATEGORY_ICONS } from "@/lib/constants";
@@ -45,7 +46,8 @@ const ExpenseAnalysis = ({ expenses, totalDebtPayments = 0, formatCurrency }: Pr
     return items.sort((a, b) => b.amount - a.amount);
   }, [expenses, totalDebtPayments]);
 
-  if (categoryData.length === 0) return null;
+  const colors = ["#426b50", "#8a9a6d", "#bca375", "#78959a", "#a88982", "#8d819d", "#a7bba0", "#c9b397", "#687d72", "#b9acbf", "#9b9d85", "#73848c"];
+  const total = categoryData.reduce((sum, item) => sum + item.amount, 0);
 
   const maxAmount = categoryData[0]?.amount || 1;
 
@@ -57,18 +59,34 @@ const ExpenseAnalysis = ({ expenses, totalDebtPayments = 0, formatCurrency }: Pr
       className="mt-10 rounded-sm border border-border bg-card p-6"
     >
       <div className="flex items-center gap-2 mb-6">
-        <BarChart3 className="h-5 w-5 text-foreground" />
+        <PieChartIcon className="h-5 w-5 text-foreground" />
         <h2 className="font-display text-lg text-foreground">Expense Breakdown</h2>
       </div>
 
+      <p className="-mt-3 mb-4 font-body text-xs text-muted-foreground">A clearer view of your monthly spending.</p>
+      {total > 0 ? <div className="relative mb-5 h-64" role="img" aria-label={`Monthly spending by category, totaling ${formatCurrency(total)}. Category amounts are listed below.`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={categoryData} dataKey="amount" nameKey="label" innerRadius={78} outerRadius={108} paddingAngle={2} stroke="none">
+              {categoryData.map((item, i) => <Cell key={item.label} fill={colors[i % colors.length]} />)}
+            </Pie>
+            <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 3, fontFamily: "var(--font-body)", fontSize: 12 }} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-body text-xs text-muted-foreground">Monthly spending</span>
+          <strong className="mt-2 font-body text-2xl">{formatCurrency(total)}</strong>
+          <span className="mt-1 font-body text-xs text-muted-foreground">{categoryData.length} categories</span>
+        </div>
+      </div> : <div className="mb-5 flex h-56 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-border text-center"><PieChartIcon className="h-9 w-9 text-muted-foreground/50"/><p className="font-body text-sm text-muted-foreground">Your spending picture starts here.</p><p className="max-w-64 font-body text-xs text-muted-foreground">Add an expense to see your category breakdown.</p></div>}
       <div className="space-y-4">
-        {categoryData.map((item) => {
+        {categoryData.map((item, i) => {
           const Icon = item.icon;
           return (
             <div key={item.label}>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: colors[i % colors.length] }} />
                   <span className="font-body text-sm text-foreground">{item.label}</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -85,7 +103,8 @@ const ExpenseAnalysis = ({ expenses, totalDebtPayments = 0, formatCurrency }: Pr
                   initial={{ width: 0 }}
                   animate={{ width: `${(item.amount / maxAmount) * 100}%` }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="h-full rounded-sm bg-foreground/70"
+                  className="h-full rounded-sm"
+                  style={{ backgroundColor: colors[i % colors.length] }}
                 />
               </div>
             </div>
@@ -93,7 +112,7 @@ const ExpenseAnalysis = ({ expenses, totalDebtPayments = 0, formatCurrency }: Pr
         })}
       </div>
 
-      <div className="mt-6 border-t border-dashed border-border pt-4">
+      {categoryData.length > 0 && <div className="mt-6 border-t border-dashed border-border pt-4">
         {(() => {
           const TopIcon = categoryData[0].icon;
           return (
@@ -111,7 +130,7 @@ const ExpenseAnalysis = ({ expenses, totalDebtPayments = 0, formatCurrency }: Pr
             </>
           );
         })()}
-      </div>
+      </div>}
     </motion.section>
   );
 };

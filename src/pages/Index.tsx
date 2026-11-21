@@ -1,301 +1,76 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, DollarSign, TrendingUp, PiggyBank, Download, Target, FileSpreadsheet, Upload } from "lucide-react";
+import { Plus, Trash2, DollarSign, Download, FileSpreadsheet, Upload } from "lucide-react";
 import { expensesToCSV, parseCSV, downloadCSV } from "@/lib/csv";
 import { toast } from "@/hooks/use-toast";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import SavingsChart from "@/components/SavingsChart";
-import ExpenseAnalysis from "@/components/ExpenseAnalysis";
-import DebtTracker from "@/components/DebtTracker";
-import DebtChart from "@/components/DebtChart";
-import type { DebtItem } from "@/components/DebtTracker";
-import { CATEGORIES, CATEGORY_ICONS, STORAGE_KEY } from "@/lib/constants";
-import type { Category } from "@/lib/constants";
+import SavingsAccounts from "@/components/SavingsAccounts";
+import PlanStartMonth from "@/components/PlanStartMonth";
+import FinancialReport from "@/components/FinancialReport";
+import { financialReport, exportFinancialPDF, money } from "@/lib/report";
+import { todayDate, planStartDate, ensureEmergencyFund, isEmergencyFund, type SavingsAccount } from "@/lib/savings";
+import DebtTracker, { type DebtItem } from "@/components/DebtTracker";
+import { CATEGORIES, CATEGORY_ICONS, STORAGE_KEY, type Category } from "@/lib/constants";
 import type { ExpenseItem } from "@/lib/types";
-
-const loadState = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return null;
-};
-
-const Index = () => {
-  const saved = loadState();
+function loadState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch { return null; } }
+export default function Index() {
+  const [saved] = useState(loadState);
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [view, setView] = useState<"report" | "edit">("report");
   const [income, setIncome] = useState<number>(saved?.income ?? 0);
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(
-    () => (saved?.expenses ?? []).map((e: any) => ({ ...e, category: e.category || "Other" }))
-  );
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(() => (saved?.expenses ?? []).map((e: ExpenseItem) => ({ ...e, category: e.category || "Other" })));
+  const [debts, setDebts] = useState<DebtItem[]>(saved?.debts ?? []);
+  const [storedAccounts, setAccounts] = useState<SavingsAccount[]>(() => {
+    const existing = saved?.accounts ?? [];
+    // Preserve the former general balance as a tracked asset, without continuing its funding rule.
+    const migrated = saved?.generalBalance > 0 ? [...existing, { id: crypto.randomUUID(), name: "Previously unassigned balance", type: "other", balance: saved.generalBalance, mode: "amount", allocation: 0, goal: 0 }] : existing;
+    return ensureEmergencyFund(migrated, (saved?.expenses ?? []).reduce((sum: number, e: ExpenseItem) => sum + e.amount, 0));
+  });
+  const monthlyLivingExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const accounts = useMemo(() => ensureEmergencyFund(storedAccounts, monthlyLivingExpenses), [storedAccounts, monthlyLivingExpenses]);
+  const [startMonth, setStartMonth] = useState(() => planStartDate(saved?.startMonth ?? todayDate().slice(0, 7)).slice(0, 7));
+  const [years, setYears] = useState<number>(saved?.years ?? 5);
   const [newLabel, setNewLabel] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState<Category>("Other");
-  const [years, setYears] = useState<number>(saved?.years ?? 5);
-  const [interestRate, setInterestRate] = useState<number>(saved?.interestRate ?? 7);
-  const [savingsGoal, setSavingsGoal] = useState<number>(saved?.savingsGoal ?? 0);
-  const [debts, setDebts] = useState<DebtItem[]>(saved?.debts ?? []);
-
-  const totalExpenses = useMemo(
-    () => expenses.reduce((sum, e) => sum + e.amount, 0),
-    [expenses]
-  );
-
-  const totalDebtPayments = useMemo(() => {
-    return debts.reduce((sum, d) => {
-      if (d.mode === "months") {
-        const r = d.apr / 100 / 12;
-        if (r === 0) return sum + d.balance / d.targetMonths;
-        return sum + (d.balance * r * Math.pow(1 + r, d.targetMonths)) / (Math.pow(1 + r, d.targetMonths) - 1);
-      }
-      return sum + d.monthlyPayment;
-    }, 0);
-  }, [debts]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, years, interestRate, savingsGoal, debts }));
-  }, [income, expenses, years, interestRate, savingsGoal, debts]);
-
-  const monthlySavings = income - totalExpenses - totalDebtPayments;
-  const yearlySavings = monthlySavings * 12;
-
-  const timeToGoal = useMemo(() => {
-    if (savingsGoal <= 0 || monthlySavings <= 0) return null;
-    const r = interestRate / 100 / 12;
-    if (r === 0) {
-      const months = savingsGoal / monthlySavings;
-      return months;
-    }
-    const n = Math.log((savingsGoal * r) / monthlySavings + 1) / Math.log(1 + r);
-    return n;
-  }, [savingsGoal, monthlySavings, interestRate]);
-
-  const formatTimeToGoal = (months: number) => {
-    const y = Math.floor(months / 12);
-    const m = Math.ceil(months % 12);
-    if (y === 0) return `${m} month${m !== 1 ? "s" : ""}`;
-    if (m === 0) return `${y} year${y !== 1 ? "s" : ""}`;
-    return `${y} year${y !== 1 ? "s" : ""} ${m} month${m !== 1 ? "s" : ""}`;
-  };
-
-  const projectedSavings = useMemo(() => {
-    if (monthlySavings <= 0) return 0;
-    const r = interestRate / 100 / 12;
-    const n = years * 12;
-    if (r === 0) return monthlySavings * n;
-    return monthlySavings * ((Math.pow(1 + r, n) - 1) / r);
-  }, [monthlySavings, interestRate, years]);
-
-  const addExpense = () => {
-    const amount = parseFloat(newAmount);
-    if (!newLabel.trim() || isNaN(amount) || amount <= 0) return;
-    setExpenses((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), label: newLabel.trim(), amount, category: newCategory },
-    ]);
-    setNewLabel("");
-    setNewAmount("");
-  };
-
-  const removeExpense = (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  const updateExpense = (id: string, field: "label" | "amount" | "category", value: string) => {
-    setExpenses((prev) =>
-      prev.map((e) =>
-        e.id === id
-          ? {
-              ...e,
-              ...(field === "label"
-                ? { label: value }
-                : field === "category"
-                ? { category: value as Category }
-                : { amount: parseFloat(value) || 0 }),
-            }
-          : e
-      )
-    );
-  };
-
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(n);
-
-  const exportPDF = useCallback(() => {
-    const doc = new jsPDF();
-    const fc = formatCurrency;
-    let y = 20;
-
-    doc.setFont("courier", "bold");
-    doc.setFontSize(20);
-    doc.text("Expense Tracker", 105, y, { align: "center" });
-    y += 12;
-
-    doc.setFont("courier", "normal");
-    doc.setFontSize(10);
-    doc.text(`Generated ${new Date().toLocaleDateString()}`, 105, y, { align: "center" });
-    y += 16;
-
-    doc.setFontSize(14);
-    doc.setFont("courier", "bold");
-    doc.text("Monthly Income", 14, y);
-    y += 8;
-    doc.setFont("courier", "normal");
-    doc.setFontSize(12);
-    doc.text(fc(income), 14, y);
-    y += 14;
-
-    if (expenses.length > 0) {
-      doc.setFontSize(14);
-      doc.setFont("courier", "bold");
-      doc.text("Monthly Expenses", 14, y);
-      y += 4;
-
-      autoTable(doc, {
-        startY: y,
-        head: [["Expense", "Category", "Amount"]],
-        body: [
-          ...expenses.map((e) => [e.label, e.category, fc(e.amount)]),
-          [
-            { content: "Total", styles: { fontStyle: "bold" } },
-            "",
-            { content: fc(totalExpenses), styles: { fontStyle: "bold" } },
-          ],
-        ],
-        styles: { font: "courier", fontSize: 10 },
-        headStyles: { fillColor: [45, 45, 45] },
-        theme: "grid",
-      });
-
-      y = (doc as any).lastAutoTable.finalY + 14;
-    }
-
-    doc.setFontSize(14);
-    doc.setFont("courier", "bold");
-    doc.text("Monthly Savings", 14, y);
-    y += 8;
-    doc.setFont("courier", "normal");
-    doc.setFontSize(12);
-    doc.text(fc(monthlySavings), 14, y);
-    y += 6;
-    doc.setFontSize(10);
-    doc.text(`${fc(yearlySavings)} per year`, 14, y);
-    y += 14;
-
-    doc.setFontSize(14);
-    doc.setFont("courier", "bold");
-    doc.text("Savings Projection", 14, y);
-    y += 8;
-    doc.setFont("courier", "normal");
-    doc.setFontSize(10);
-    doc.text(`In ${years} year${years !== 1 ? "s" : ""} at ${interestRate}% annual return`, 14, y);
-    y += 6;
-    doc.setFontSize(16);
-    doc.setFont("courier", "bold");
-    doc.text(fc(projectedSavings), 14, y);
-
-    doc.save("expense-tracker.pdf");
-  }, [income, expenses, totalExpenses, monthlySavings, yearlySavings, projectedSavings, years, interestRate]);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const exportCSV = useCallback(() => {
-    downloadCSV(expensesToCSV(expenses, debts));
-    toast({
-      title: "CSV exported",
-      description: `${expenses.length} expense${expenses.length !== 1 ? "s" : ""} and ${debts.length} debt${debts.length !== 1 ? "s" : ""} saved.`,
-    });
-  }, [expenses, debts]);
-
-  const importCSV = async (file: File) => {
-    try {
-      const imported = parseCSV(await file.text());
-      if (imported.expenses.length === 0 && imported.debts.length === 0) {
-        toast({ title: "Nothing imported", description: "No valid rows found in that file.", variant: "destructive" });
-        return;
-      }
-      setExpenses((prev) => [...prev, ...imported.expenses]);
-      setDebts((prev) => [...prev, ...imported.debts]);
-      toast({
-        title: "CSV imported",
-        description: `Added ${imported.expenses.length} expense${imported.expenses.length !== 1 ? "s" : ""} and ${imported.debts.length} debt${imported.debts.length !== 1 ? "s" : ""}.`,
-      });
-    } catch {
-      toast({ title: "Import failed", description: "That file could not be read.", variant: "destructive" });
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background px-4 py-12 md:py-20">
-      <div className="mx-auto max-w-2xl">
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-2 text-center font-display text-4xl tracking-wide text-foreground md:text-5xl"
-        >
-          Expense Tracker
-        </motion.h1>
-        <p className="mb-12 text-center font-body text-sm text-muted-foreground">
-          income — expenses — savings projection
-        </p>
-
-        <div className="mb-8 flex flex-wrap justify-end gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) importCSV(file);
-              e.target.value = "";
-            }}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Import CSV
-          </button>
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            Export CSV
-          </button>
-          <button
-            onClick={exportPDF}
-            className="flex items-center gap-2 rounded-sm border border-border px-4 py-2 font-body text-sm text-foreground transition-colors hover:bg-accent"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export PDF
-          </button>
-        </div>
-
-        {/* Income */}
+  const [exporting, setExporting] = useState(false);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify({ income, expenses, debts, accounts, years, startMonth })); }, [income, expenses, debts, accounts, years, startMonth]);
+  const today = planStartDate(startMonth);
+  const report = useMemo(() => financialReport(income, expenses, debts, accounts, years, today, selectedMonth), [income, expenses, debts, accounts, years, today, selectedMonth]);
+  const totalExpenses = report.spending;
+  const formatCurrency = money;
+  function addExpense() { const amount = Number(newAmount); if (!newLabel.trim() || !Number.isFinite(amount) || amount <= 0) return; setExpenses(prev => [...prev, { id: crypto.randomUUID(), label: newLabel.trim(), category: newCategory, amount }]); setNewLabel(""); setNewAmount(""); }
+  function removeExpense(id: string) { setExpenses(prev => prev.filter(e => e.id !== id)); }
+  function updateExpense(id: string, field: "label" | "amount" | "category", value: string) { setExpenses(prev => prev.map(e => e.id === id ? { ...e, [field]: field === "amount" ? Math.max(0, Number(value) || 0) : value } : e)); }
+  async function exportPDF() { setExporting(true); try { await exportFinancialPDF(report); } catch { toast({ title: "PDF export failed", description: "Please try again.", variant: "destructive" }); } finally { setExporting(false); } }
+  function exportCSV() { downloadCSV(expensesToCSV(expenses, debts, accounts, { income, years, startMonth }), "financial-plan.csv"); toast({ title: "Full plan exported", description: "Income, expenses, debts, accounts and projection settings saved." }); }
+  async function importCSV(file: File) { try { const imported = parseCSV(await file.text()); if (!imported.expenses.length && !imported.debts.length && !imported.accounts.length && !imported.settings) { toast({ title: "No valid data found", variant: "destructive" }); return; } setExpenses(prev => [...prev, ...imported.expenses]); setDebts(prev => [...prev, ...imported.debts]); setAccounts(prev => [...(imported.accounts.some(isEmergencyFund) ? prev.filter(a => !isEmergencyFund(a)) : prev), ...imported.accounts]); if (imported.settings) { setIncome(imported.settings.income); setYears(imported.settings.years); if (imported.settings.startMonth) setStartMonth(imported.settings.startMonth); setSelectedMonth(""); } toast({ title: "Plan imported", description: "Imported items added to your plan." }); } catch { toast({ title: "Import failed", variant: "destructive" }); } }
+  return <main className="min-h-screen bg-background px-4 py-8 md:px-8 md:py-12"><div className="dashboard-container mx-auto max-w-2xl">
+    <header className="mb-8 flex flex-wrap items-start justify-between gap-5"><div><h1 className="font-display text-3xl md:text-4xl">Your Financial Plan</h1><p className="mt-2 font-body text-sm text-muted-foreground">Earn. Spend. Save with purpose. Invest the rest.</p></div><div className="flex flex-wrap gap-2"><button className="plan-button" onClick={exportCSV}><FileSpreadsheet className="h-4 w-4"/>Export CSV</button><button className="plan-button" disabled={exporting} onClick={exportPDF}><Download className="h-4 w-4"/>{exporting ? "Preparing PDF…" : "Export PDF"}</button></div></header>
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4"><div className="flex gap-2" role="tablist" aria-label="Plan view">{([['report', 'Financial report'], ['edit', 'Edit plan']] as const).map(([key, title]) => <button key={key} id={`${key}-tab`} role="tab" aria-selected={view === key} aria-controls={`${key}-panel`} className={`plan-button ${view === key ? 'bg-foreground text-background' : ''}`} onClick={() => setView(key)}>{title}</button>)}</div><span className="font-body text-xs text-muted-foreground">{years}-year outlook · saved on this device</span></div>
+    {view === 'report' ? <div id="report-panel" role="tabpanel" aria-labelledby="report-tab"><FinancialReport report={report} onMonthChange={setSelectedMonth}/></div> : <div id="edit-panel" role="tabpanel" aria-labelledby="edit-tab" className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-border bg-card p-5"><PlanStartMonth value={startMonth} onChange={month => { setStartMonth(month); setSelectedMonth(""); }}/><label className="flex items-center gap-3 font-body text-sm">Projection horizon<select className="rounded-sm border border-border bg-background px-3 py-2" value={years} onChange={e => { setYears(+e.target.value); setSelectedMonth(""); }}>{[...new Set([1, 3, 5, 10, 20, 30, years])].sort((a, b) => a - b).map(y => <option key={y} value={y}>{y} years</option>)}</select></label><input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={e => { if (e.target.files?.[0]) void importCSV(e.target.files[0]); e.target.value = ''; }}/><button className="plan-button" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4"/>Import CSV</button></div>
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_2fr]"><div className="edit-budget-panel">        {/* Income */}
         <section className="mb-10">
-          <label className="mb-2 block font-display text-lg text-foreground">
+          <label htmlFor="monthly-income" className="mb-2 block font-display text-lg text-foreground">
             Monthly Income
           </label>
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
+              id="monthly-income"
               type="number"
+              min={0}
+              step="0.01"
               value={income || ""}
-              onChange={(e) => setIncome(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setIncome(Math.max(0, parseFloat(e.target.value) || 0))}
               placeholder="0"
               className="w-full border-b-2 border-border bg-transparent py-3 pl-9 pr-3 font-body text-xl text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground"
             />
           </div>
         </section>
 
-        {/* Expenses */}
+</div><div className="edit-budget-panel">        {/* Expenses */}
         <section className="mb-10">
           <label className="mb-4 block font-display text-lg text-foreground">
             Monthly Expenses
@@ -332,6 +107,7 @@ const Index = () => {
               />
             </div>
             <button
+              aria-label="Add expense"
               onClick={addExpense}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border border-border text-foreground transition-colors hover:bg-accent"
             >
@@ -397,159 +173,11 @@ const Index = () => {
           )}
         </section>
 
-        {/* Summary */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mb-10 rounded-sm border border-border bg-card p-6"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <PiggyBank className="h-5 w-5 text-foreground" />
-            <h2 className="font-display text-lg text-foreground">Monthly Savings</h2>
-          </div>
-          <p
-            className={`font-body text-3xl font-bold ${
-              monthlySavings >= 0 ? "text-success" : "text-destructive"
-            }`}
-          >
-            {formatCurrency(monthlySavings)}
-          </p>
-          {totalDebtPayments > 0 && (
-            <p className="mt-2 font-body text-xs text-muted-foreground">
-              incl. {formatCurrency(totalDebtPayments)}/mo in debt payments
-            </p>
-          )}
-          <p className="mt-1 font-body text-xs text-muted-foreground">
-            {monthlySavings >= 0
-              ? `${formatCurrency(yearlySavings)} per year`
-              : "You're spending more than you earn"}
-          </p>
-        </motion.section>
-
-        {/* Projection */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="rounded-sm border border-border bg-card p-6"
-        >
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp className="h-5 w-5 text-foreground" />
-            <h2 className="font-display text-lg text-foreground">Savings Projection</h2>
-          </div>
-
-          <div className="mb-6 grid grid-cols-2 gap-6">
-            <div>
-              <label className="mb-1 block font-body text-xs text-muted-foreground">Years</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={years}
-                onChange={(e) => setYears(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full border-b-2 border-border bg-transparent py-2 font-body text-lg text-foreground outline-none focus:border-foreground"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block font-body text-xs text-muted-foreground">Interest Rate (%)</label>
-              <input
-                type="number"
-                min={0}
-                max={30}
-                step={0.5}
-                value={interestRate}
-                onChange={(e) => setInterestRate(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full border-b-2 border-border bg-transparent py-2 font-body text-lg text-foreground outline-none focus:border-foreground"
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-dashed border-border pt-4">
-            <p className="font-body text-xs text-muted-foreground">
-              In {years} year{years !== 1 ? "s" : ""} at {interestRate}% annual return
-            </p>
-            <p
-              className={`mt-1 font-body text-3xl font-bold ${
-                projectedSavings > 0 ? "text-success" : "text-muted-foreground"
-              }`}
-            >
-              {formatCurrency(projectedSavings)}
-            </p>
-            <p className="mt-1 font-body text-xs text-muted-foreground">
-              with compound interest (monthly contributions)
-            </p>
-          </div>
-        </motion.section>
-
-        {/* Savings Goal */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.35 }}
-          className="mt-10 rounded-sm border border-border bg-card p-6"
-        >
-          <div className="flex items-center gap-2 mb-6">
-            <Target className="h-5 w-5 text-foreground" />
-            <h2 className="font-display text-lg text-foreground">Savings Goal</h2>
-          </div>
-
-          <div className="relative mb-6">
-            <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="number"
-              value={savingsGoal || ""}
-              onChange={(e) => setSavingsGoal(parseFloat(e.target.value) || 0)}
-              placeholder="Enter your target amount"
-              className="w-full border-b-2 border-border bg-transparent py-3 pl-9 pr-3 font-body text-xl text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground"
-            />
-          </div>
-
-          {savingsGoal > 0 && (
-            <div className="border-t border-dashed border-border pt-4">
-              {monthlySavings <= 0 ? (
-                <p className="font-body text-sm text-destructive">
-                  You need positive monthly savings to reach your goal
-                </p>
-              ) : timeToGoal !== null ? (
-                <>
-                  <p className="font-body text-xs text-muted-foreground">
-                    At {formatCurrency(monthlySavings)}/mo with {interestRate}% return
-                  </p>
-                  <p className="mt-1 font-body text-3xl font-bold text-success">
-                    {formatTimeToGoal(timeToGoal)}
-                  </p>
-                  <p className="mt-1 font-body text-xs text-muted-foreground">
-                    to reach {formatCurrency(savingsGoal)}
-                  </p>
-                </>
-              ) : null}
-            </div>
-          )}
-        </motion.section>
-
-        {/* Savings Growth Chart */}
-        <SavingsChart
-          monthlySavings={monthlySavings}
-          interestRate={interestRate}
-          years={years}
-          savingsGoal={savingsGoal}
-          formatCurrency={formatCurrency}
-        />
-
-        {/* Debt Payoff */}
-        <DebtTracker debts={debts} setDebts={setDebts} formatCurrency={formatCurrency} />
-        <DebtChart debts={debts} formatCurrency={formatCurrency} />
-
-        {/* Category Analysis */}
-        <ExpenseAnalysis expenses={expenses} totalDebtPayments={totalDebtPayments} formatCurrency={formatCurrency} />
-
-        <p className="mt-12 text-center font-body text-xs text-muted-foreground">
-          all data stays in your browser · <b>by Sir Guevara</b>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default Index;
+</div></div>
+      <p className="font-body text-xs leading-relaxed text-muted-foreground">Recorded account balances are the opening balances for Month 1. Forecasts and deadline deposits start from that month; changing the start does not change your balances.</p>
+      <SavingsAccounts asOf={today} accounts={accounts} monthlySavings={report.available} onChange={setAccounts}/>
+      <details className="rounded-sm border border-border bg-card p-5"><summary className="cursor-pointer font-display text-lg">Debt payments {debts.length > 0 ? `(${debts.length})` : '(optional)'}</summary><DebtTracker debts={debts} setDebts={setDebts} formatCurrency={money}/></details>
+    </div>}
+    <footer className="mt-8 border-t border-border py-5 text-center font-body text-xs text-muted-foreground">All data stays in your browser · by Sir Guevara</footer>
+  </div></main>;
+}

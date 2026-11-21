@@ -54,3 +54,53 @@
     font-family: var(--font-display);
   }
 }
+
+/* Subtle refinements to the existing paper-and-typewriter style. */
+@layer base {
+  input, select, button { transition: border-color 160ms, background-color 160ms, box-shadow 160ms; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid hsl(var(--success)); outline-offset: 3px; }
+  input[type="number"] { font-variant-numeric: tabular-nums; }
+  section.bg-card { box-shadow: 0 2px 8px hsl(30 15% 20% / 0.035); }
+  button:disabled { box-shadow: none; }
+}
+
+/* Responsive planning and report layout. */
+@media (min-width: 1024px) {
+  .dashboard-container { max-width: 1240px; }
+  .savings-account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+  .savings-account-grid > article { margin-top: 0 !important; }
+}
+@media (min-width: 1440px) {
+  .dashboard-container { max-width: 1360px; }
+  .savings-account-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; }
+}
+
+.plan-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border: 1px solid hsl(var(--border)); border-radius: 2px; padding: .6rem .85rem; font-family: var(--font-body); font-size: .875rem; transition: background-color 160ms; }
+.plan-button:hover { background-color: hsl(var(--accent)); color: hsl(var(--foreground)); }
+.plan-button:disabled { opacity: .5; cursor: wait; }
+.report-breakdown > section { margin-top: 0; }
+.report-table-wrap { overflow-x: auto; }
+.report-table { width: 100%; text-align: left; border-collapse: collapse; font-family: var(--font-body); font-size: .875rem; }
+.report-table th { color: hsl(var(--muted-foreground)); font-size: .75rem; font-weight: normal; }
+.report-table th, .report-table td { padding: .9rem .7rem; border-bottom: 1px dashed hsl(var(--border)); vertical-align: top; }
+.report-table td:not(:first-child) { font-variant-numeric: tabular-nums; }
+.report-table tr:last-child td { border-bottom: 0; }
+.edit-budget-panel { min-width: 0; }
+.edit-budget-panel > section { height: 100%; margin-bottom: 0; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: 1.5rem; }
+#edit-panel > section { margin-top: 0; }
+@media print {
+  header button, [role="tablist"], .report-controls, #edit-panel { display: none !important; }
+  body, main { background: white !important; }
+  main { padding: 0 !important; }
+  .financial-report section { break-inside: avoid; box-shadow: none; }
+  .report-table-wrap { overflow: visible; }
+}
+
+.funded-goals { background: hsl(142 28% 93%); border-color: hsl(142 26% 76%); color: hsl(142 38% 24%); }
+.funded-goal-card { background: hsl(142 32% 98%); border-color: hsl(142 24% 81%); }
+.funded-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; border-radius: 999px; background: hsl(142 28% 85%); }
+.funded-goal-card details article { padding: 0; border: 0; background: transparent; color: hsl(var(--foreground)); }
+.funded-goals { break-inside: avoid; }
