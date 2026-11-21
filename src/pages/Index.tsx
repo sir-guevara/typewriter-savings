@@ -174,7 +174,7 @@ export default function Index() {
         </section>
 
 </div></div>
-      <p className="font-body text-xs leading-relaxed text-muted-foreground">Recorded account balances are the opening balances for Month 1. Forecasts and deadline deposits start from that month; changing the start does not change your balances.</p>
+
       <SavingsAccounts asOf={today} accounts={accounts} monthlySavings={report.available} onChange={setAccounts}/>
       <details className="rounded-sm border border-border bg-card p-5"><summary className="cursor-pointer font-display text-lg">Debt payments {debts.length > 0 ? `(${debts.length})` : '(optional)'}</summary><DebtTracker debts={debts} setDebts={setDebts} formatCurrency={money}/></details>
     </div>}

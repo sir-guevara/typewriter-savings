@@ -177,9 +177,9 @@ describe('fixed commitments before the priority split', () => {
   it('models future freed commitments and interest without changing recorded balances', () => {
     const accounts = [account({ id: 'fixed', mode: 'amount', allocation: 200, goal: 400 }), priority('p', { goal: 1000 }), { ...investment, annualReturn: 12 }];
     const first = projectAccountMonth(accounts, 1000, '2026-11', '2026-11-21')!;
-    expect(first.accounts.map(a => a.contribution)).toEqual([200, 640, 160]);
+    expect(first.accounts.map(a => a.contribution)).toEqual([200, 400, 400]);
     const third = projectAccountMonth(accounts, 1000, '2027-01', '2026-11-21')!;
-    expect(third.accounts.map(a => a.contribution)).toEqual([0, 0, 1000]);
+    expect(third.accounts.map(a => a.contribution)).toEqual([0, 200, 800]);
     const fourth = projectAccountMonth(accounts, 1000, '2027-02', '2026-11-21')!;
     expect(fourth.accounts.map(a => a.contribution)).toEqual([0, 0, 1000]);
     expect(fourth.accounts[2].growth).toBeGreaterThan(0);
@@ -187,10 +187,10 @@ describe('fixed commitments before the priority split', () => {
   });
   it('reconciles odd cents and leaves investment funds unallocated when there is no recipient', () => {
     const plan = savingsPlan([account({ mode: 'amount', allocation: .01, goal: 0 }), priority('p'), investment], .04);
-    expect(plan.contributions.map(c => c.amount)).toEqual([.01, .02, .01]);
+    expect(plan.contributions.map(c => c.amount)).toEqual([.01, .01, .02]);
     const noInvestment = savingsPlan([account({ mode: 'amount', allocation: 100, goal: 0 }), priority('p')], 1000);
-    expect(noInvestment.contributions.map(c => c.amount)).toEqual([100, 720]);
-    expect(noInvestment.unallocated).toBe(180);
+    expect(noInvestment.contributions.map(c => c.amount)).toEqual([100, 450]);
+    expect(noInvestment.unallocated).toBe(450);
   });
   it('preserves 20% of only the remainder at every priority completion state', () => {
     for (const available of [.03, 1.01, 1000]) {
@@ -202,5 +202,30 @@ describe('fixed commitments before the priority split', () => {
         expect(plan.contributions.reduce((sum, c) => sum + Math.round(c.amount * 100), 0)).toBe(Math.round(available * 100));
       }
     }
+  });
+});
+
+describe('split changes with unfinished priority count', () => {
+  const p = (id: string, goal: number, balance = 0): SavingsAccount => account({ id, priority: true, goal, balance, allocation: 0 });
+  const invest = account({ id: 'invest', type: 'investment', goal: 0, allocation: 0 });
+  it('excludes completed goals, zero-goal accounts and investments from the priority count', () => {
+    const plan = savingsPlan([p('funded', 100, 100), p('unfinished', 5000), p('no-goal', 0), { ...invest, priority: true }], 1000);
+    expect(plan.priorityCount).toBe(1);
+    expect(plan.investmentShare).toBe(50);
+    expect(plan.contributions.map(c => c.amount)).toEqual([0, 500, 0, 500]);
+  });
+  it('changes from 80/20 to 50/50, then 100% investments across the forecast', () => {
+    const accounts = [p('small', 100), p('large', 1100), invest];
+    const first = projectAccountMonth(accounts, 1000, '2026-11', '2026-11-01')!;
+    expect(first.accounts.map(a => a.contribution)).toEqual([100, 700, 200]);
+    const second = projectAccountMonth(accounts, 1000, '2026-12', '2026-11-01')!;
+    expect(second.accounts.map(a => a.contribution)).toEqual([0, 400, 600]);
+    const third = projectAccountMonth(accounts, 1000, '2027-01', '2026-11-01')!;
+    expect(third.accounts.map(a => a.contribution)).toEqual([0, 0, 1000]);
+  });
+  it('funds fixed commitments before the last priority and investment split', () => {
+    const plan = savingsPlan([account({ mode: 'amount', allocation: 300, goal: 0 }), p('last', 5000), invest], 1000);
+    expect(plan.fixedTotal).toBe(300);
+    expect(plan.contributions.map(c => c.amount)).toEqual([300, 350, 350]);
   });
 });

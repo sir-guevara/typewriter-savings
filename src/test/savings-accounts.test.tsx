@@ -23,7 +23,7 @@ describe('account editing', () => {
     const article = screen.getByDisplayValue('Investment portfolio').closest('article')!;
     fireEvent.change(within(article).getByLabelText('Assumed annual return (%)'), { target: { value: '6' } });
     expect(within(article).getByLabelText('Assumed annual return (%)')).toHaveValue(6);
-    expect(within(article).getByText(/Receives 100.0%/)).toBeInTheDocument();
+    expect(within(article).getByText(/Effective share: 100.0%/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove Investment portfolio' }));
     expect(screen.queryByDisplayValue('Investment portfolio')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
@@ -47,7 +47,7 @@ it('calculates the contribution when a savings deadline is chosen and updates it
 it('toggles priority funding and recalculates the contribution and timeline', () => {
   render(<Planner/>);
   fireEvent.click(screen.getByLabelText('Priority for Emergency fund'));
-  expect(screen.getByText(/Priority funding is on/)).toBeInTheDocument();
+  expect(screen.getByText(/Priority funding on/)).toBeInTheDocument();
   expect(screen.getByText('$50.00 this month')).toBeInTheDocument();
   expect(screen.queryByLabelText('Allocation method')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Reach by (optional target)')).toBeInTheDocument();
@@ -76,5 +76,5 @@ it('keeps fixed savings controls available while priority funding is on', () => 
   fireEvent.change(within(vacation).getByLabelText('Allocation method'), { target: { value: 'amount' } });
   fireEvent.change(within(vacation).getByLabelText('Allocation ($ / month)'), { target: { value: '300' } });
   expect(within(vacation).getByText('$300.00 this month')).toBeInTheDocument();
-  expect(screen.getByText(/Fixed savings first: \$300.00/)).toBeInTheDocument();
+  expect(screen.getByText('Fixed savings')).toBeInTheDocument();
 });

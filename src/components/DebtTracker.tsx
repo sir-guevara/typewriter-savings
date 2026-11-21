@@ -1,3 +1,4 @@
+import HelpTip from "./HelpTip";
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Landmark, Plus, Trash2, DollarSign, Calendar, CreditCard } from "lucide-react";
@@ -92,7 +93,7 @@ const DebtTracker = ({ debts, setDebts, formatCurrency }: DebtTrackerProps) => {
     >
       <div className="flex items-center gap-2 mb-6">
         <Landmark className="h-5 w-5 text-foreground" />
-        <h2 className="font-display text-lg text-foreground">Debt Payoff Planner</h2>
+        <h2 className="font-display text-lg text-foreground">Debt Payoff Planner</h2><HelpTip label="Debt calculations">Set a timeline to calculate the monthly payment, or set a payment to estimate payoff time. APR is divided by 12 for monthly interest. If the payment does not cover interest, the debt cannot be paid off at that amount. The account outlook keeps monthly debt payments constant throughout its forecast.</HelpTip>
       </div>
 
       {/* Add new debt */}

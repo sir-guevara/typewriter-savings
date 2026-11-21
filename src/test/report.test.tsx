@@ -27,7 +27,8 @@ describe('financial report and exports', () => {
     expect(screen.getByText('Long-term, "portfolio"')).toBeInTheDocument();
     expect(screen.getByText('Debt plan')).toBeInTheDocument();
     expect(screen.getByText('6%')).toBeInTheDocument();
-    expect(container.querySelectorAll('input, select, textarea, button')).toHaveLength(0);
+    expect(container.querySelectorAll('input, select, textarea')).toHaveLength(0);
+    expect(screen.getAllByRole('button').every(button => button.getAttribute('aria-label')?.startsWith('About '))).toBe(true);
   });
   it('round-trips the complete plan through CSV and retains legacy imports', () => {
     const parsed = parseCSV(expensesToCSV(expenses, debts, accounts, { income: 3000, years: 10 }));
@@ -145,7 +146,7 @@ it('exports priority settings and shows missed deadlines without blocking the fo
     accounts[1],
   ];
   const report = financialReport(3000, expenses, debts, priorityAccounts, 5, '2026-11-21');
-  expect(report.plan.contributions.map(c => c.amount)).toEqual([1040, 100, 260]);
+  expect(report.plan.contributions.map(c => c.amount)).toEqual([650, 100, 650]);
   expect(report.projections).not.toBeNull();
   expect(report.deadlineWarnings[0]).toContain('misses the Nov 30, 2026 target');
   expect(report.accountRows[0][0]).toBe('Priority reserve (priority)');

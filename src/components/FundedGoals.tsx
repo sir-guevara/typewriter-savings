@@ -1,3 +1,4 @@
+import HelpTip from './HelpTip';
 import type { ReactNode } from 'react';
 import { CheckCircle2, ShieldCheck } from 'lucide-react';
 import { money } from '@/lib/report';
@@ -16,7 +17,7 @@ export default function FundedGoals({ goals, renderEditor }: { goals: FundedGoal
   if (!goals.length) return null;
   return <section aria-label="Funded goals" className="funded-goals mt-6 rounded-sm border p-4 sm:p-5">
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div><h3 className="flex items-center gap-2 font-display text-lg"><ShieldCheck className="h-5 w-5"/>Funded goals <span className="funded-count font-body text-xs">{goals.length}</span></h3><p className="mt-2 max-w-xl font-body text-xs leading-relaxed">Your savings goals are covered. These balances stay set aside while future contributions follow your savings and investment plan.</p></div>
+      <div><h3 className="flex items-center gap-2 font-display text-lg"><ShieldCheck className="h-5 w-5"/>Funded goals <span className="funded-count font-body text-xs">{goals.length}</span><HelpTip label="Funded savings">These savings goals are fully covered. Balances stay set aside; future contributions follow your funding rule. If a balance falls below its goal, the account returns to active funding. Projected goals assume all earlier planned deposits were made.</HelpTip></h3></div>
       <div className="font-body text-right"><p className="text-xs">{goals.some(g => g.projected) ? 'Projected reserves' : 'Set aside'}</p><p className="mt-1 text-xl font-bold">{money(goals.reduce((sum, g) => sum + g.balance, 0))}</p></div>
     </div>
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{goals.map(goal => <article key={goal.id} className="funded-goal-card rounded-sm border p-4">

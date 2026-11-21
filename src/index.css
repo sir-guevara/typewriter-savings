@@ -92,7 +92,7 @@
 .edit-budget-panel > section { height: 100%; margin-bottom: 0; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); padding: 1.5rem; }
 #edit-panel > section { margin-top: 0; }
 @media print {
-  header button, [role="tablist"], .report-controls, #edit-panel { display: none !important; }
+  header button, [role="tablist"], .report-controls, .help-tip-trigger, .help-tip-content, #edit-panel { display: none !important; }
   body, main { background: white !important; }
   main { padding: 0 !important; }
   .financial-report section { break-inside: avoid; box-shadow: none; }

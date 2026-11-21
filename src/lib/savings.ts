@@ -1,3 +1,5 @@
+export const PRIORITY_FUNDING_RULE = "After fixed savings are funded, two or more unfinished priority goals share 80% of the remainder and investments receive 20%. One unfinished priority goal splits the remainder 50/50 with investments. With none left, the entire remainder goes to investments. Unused priority funds also go to investments.";
+
 export interface SavingsAccount {
   id: string;
   name: string;
@@ -78,8 +80,9 @@ export function savingsPlan(accounts: SavingsAccount[], monthlySavings: number, 
   const overallocated = fixedTotal > available;
   const remainder = overallocated ? 0 : available - fixedTotal;
   const rooms = accounts.map(a => a.type === "savings" && a.priority && a.goal > 0 ? Math.max(0, cents(a.goal) - cents(a.balance)) : 0);
-  const hasPriorityGoals = rooms.some(room => room > 0);
-  const priorityBudget = hasPriorityGoals ? Math.floor(remainder * 4 / 5) : 0;
+  const priorityCount = rooms.filter(room => room > 0).length;
+  const investmentShare = priorityCount > 1 ? 20 : priorityCount === 1 ? 50 : 100;
+  const priorityBudget = priorityCount > 1 ? Math.floor(remainder * 4 / 5) : priorityCount === 1 ? Math.floor(remainder / 2) : 0;
   let left = priorityBudget;
   let active = accounts.map((_, i) => i).filter(i => rooms[i] > 0);
   while (left > 0 && active.length > 0) {
@@ -113,7 +116,7 @@ export function savingsPlan(accounts: SavingsAccount[], monthlySavings: number, 
     }
     remaining = 0;
   }
-  return { fixedTotal: fixedTotal / 100, remainder: remainder / 100, priorityBudget: priorityBudget / 100, priorityTotal: priorityTotal / 100, investmentMinimum: (remainder - priorityBudget) / 100, priorityMode, contributions, available: available / 100, overallocated, excess: Math.max(0, fixedTotal - available) / 100, deadlineIssues, blocked: overallocated || deadlineIssues.length > 0, unallocated: remaining / 100 };
+  return { priorityCount, investmentShare, fixedTotal: fixedTotal / 100, remainder: remainder / 100, priorityBudget: priorityBudget / 100, priorityTotal: priorityTotal / 100, investmentMinimum: (remainder - priorityBudget) / 100, priorityMode, contributions, available: available / 100, overallocated, excess: Math.max(0, fixedTotal - available) / 100, deadlineIssues, blocked: overallocated || deadlineIssues.length > 0, unallocated: remaining / 100 };
 }
 export function monthsToGoal(account: SavingsAccount, monthlySavings: number, asOf = todayDate()) {
   if (!account.goal || account.type === "other") return null;

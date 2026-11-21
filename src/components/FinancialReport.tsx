@@ -1,4 +1,5 @@
-import { isFundedSavings, monthLabel } from '@/lib/savings';
+import { PRIORITY_FUNDING_RULE, isFundedSavings, monthLabel } from '@/lib/savings';
+import HelpTip from './HelpTip';
 import FundedGoals from './FundedGoals';
 import ProjectionMonthPicker from './ProjectionMonthPicker';
 import ExpenseAnalysis from './ExpenseAnalysis';
@@ -21,18 +22,18 @@ export default function FinancialReport({ report: r, onMonthChange }: { report: 
       {r.plan.deadlineIssues.map(issue => <p key={issue.id}>{r.accounts.find(a => a.id === issue.id)?.name}: {issue.message}</p>)}
       {!r.plan.blocked && r.plan.unallocated > 0 && <p>{money(r.plan.unallocated)} each month is unallocated. Add an investment account or adjust its overflow weight to give every dollar a destination.</p>}
     </div>}
-    {r.plan.priorityMode && <div className={`${panel} space-y-2 font-body text-sm leading-relaxed`}><p>Fixed savings first: {money(r.plan.fixedTotal)}. Remaining: {money(r.plan.remainder)}. Investments receive at least {money(r.plan.investmentMinimum)}; unfinished priority goals share up to {money(r.plan.priorityBudget)} equally. Unused priority funds go to investments.</p>{r.deadlineWarnings.map(warning => <p key={warning} className="text-destructive">{warning}</p>)}</div>}
+    {r.plan.priorityMode && <div className={`${panel} space-y-2 font-body text-sm leading-relaxed`}><p>Fixed savings first: {money(r.plan.fixedTotal)}. Remaining: {money(r.plan.remainder)}. Investments receive at least {money(r.plan.investmentMinimum)}; unfinished priority goals share up to {money(r.plan.priorityBudget)} equally. </p>{r.deadlineWarnings.map(warning => <p key={warning} className="text-destructive">{warning}</p>)}</div>}
     <div className="grid items-start gap-6 lg:grid-cols-[1.3fr_1fr]">
       <section className={panel}><h2 className="mb-5 font-display text-lg">Where you stand</h2><dl className="space-y-3 font-body text-sm">{[['Savings', r.savings], ['Investments', r.investments], ...(r.tracked ? [['Other tracked balances', r.tracked]] : []), ['Outstanding debt', r.debtBalance], ['Net worth', r.netWorth]].map(([label, value]) => <div key={label} className="flex justify-between gap-3 border-b border-dashed border-border pb-3"><dt>{label}</dt><dd className="font-bold">{money(+value)}</dd></div>)}</dl><h3 className="mb-3 mt-6 font-display">Monthly expenses</h3>{r.expenses.length ? <ul className="space-y-3 font-body text-sm">{r.expenses.map(e => <li key={e.id} className="flex justify-between gap-4"><span>{e.label}<small className="ml-2 text-muted-foreground">{e.category}</small></span><b>{money(e.amount)}</b></li>)}</ul> : <p className="font-body text-sm text-muted-foreground">No expenses entered.</p>}</section>
       <div className="report-breakdown"><ExpenseAnalysis expenses={r.expenses} totalDebtPayments={r.debtPayments} formatCurrency={money}/></div>
     </div>
     <section className={panel}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-display text-lg">Accounts, goals & your {r.years}-year outlook</h2><p className="mt-2 font-body text-xs text-muted-foreground">{r.selectedMonth ? `Your plan for ${r.selectedMonthLabel}` : `${monthLabel(r.asOf.slice(0, 7))} is Month 1. Allocations include redirected savings.`}</p></div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-display text-lg">Accounts, goals & your {r.years}-year outlook <HelpTip label="Account outlook"><p>{PRIORITY_FUNDING_RULE}</p><p>Forecasts use opening balances for Month 1, constant income, expenses and debt payments. Deadline deposits happen at month-end. Savings earn no interest; each investment compounds monthly at its assumed annual return. Fees and taxes are excluded; returns can vary.</p><p>Monthly views assume you made every earlier planned deposit. Estimates do not change your recorded balances. Unallocated money is excluded from projected account values.</p></HelpTip></h2><p className="mt-2 font-body text-xs text-muted-foreground">{r.selectedMonth ? `Your plan for ${r.selectedMonthLabel}` : `${monthLabel(r.asOf.slice(0, 7))} is Month 1.`}</p></div>
         {onMonthChange && <div className="report-controls flex flex-wrap items-end gap-3"><ProjectionMonthPicker value={r.selectedMonth} min={r.monthRange.min} max={r.monthRange.max} onChange={onMonthChange}/>{r.selectedMonth && <button className="plan-button" onClick={() => onMonthChange('')}>Full outlook</button>}</div>}
       </div>
       {r.selectedMonth ? <>
         {!r.monthPlan ? <p role="status" className="font-body text-sm text-muted-foreground">{r.plan.blocked ? 'Adjust the allocations or deadlines flagged above to see this month’s plan.' : 'Choose a month within your projection period.'}</p> : <>
-          <p className="mb-4 font-body text-sm leading-relaxed text-muted-foreground">These are the deposits to make at the end of {r.selectedMonthLabel}. Balances assume you followed the plan in every earlier month; investment growth is estimated.</p>
+
           {active.length > 0 ? <div className="report-table-wrap"><table className="report-table"><thead><tr>{['Account', 'Start of month', 'Contribute this month', 'Estimated growth', 'End of month', 'Goal status'].map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{active.map(({ account: a, i }) => {
             const month = r.monthPlan.accounts[i];
             return <tr key={a.id}><td><b>{a.name}{a.type === 'savings' && a.priority ? ' · Priority' : ''}</b><small className="block capitalize text-muted-foreground">{a.type}</small></td><td>{money(month.opening)}</td><td><b>{money(month.contribution)}</b>{month.redirected > 0 && <small className="block text-muted-foreground">Includes {money(month.redirected)} redirected</small>}</td><td>{money(month.growth)}</td><td>{money(month.closing)}</td><td>{month.goalReachedThisMonth ? 'Reached this month' : month.goalReached ? a.type === 'investment' ? 'Milestone reached' : 'Already funded' : a.goal > 0 ? 'In progress' : 'Ongoing'}</td></tr>;
@@ -46,6 +47,6 @@ export default function FinancialReport({ report: r, onMonthChange }: { report: 
       <FundedGoals goals={fundedCards}/>
     </section>
     {r.debts.length > 0 && <section className={panel}><h2 className="mb-5 font-display text-lg">Debt plan</h2><div className="report-table-wrap"><table className="report-table"><thead><tr><th>Debt</th><th>Balance</th><th>APR</th><th>Monthly payment</th></tr></thead><tbody>{r.debts.map(d => <tr key={d.id}><td>{d.name}</td><td>{money(d.balance)}</td><td>{d.apr}%</td><td>{money(debtPayment(d))}</td></tr>)}</tbody></table></div></section>}
-    <p className="font-body text-xs leading-relaxed text-muted-foreground">Deadline savings goals assume month-end deposits starting in Month 1. Savings stop at their goals. Fixed-date, fixed-amount and fixed-percentage savings are funded first. The remainder splits 20% to investments and 80% to unfinished priority goals; investment overflow uses your split weights. Investment goals are milestones. Forecasts assume constant income, expenses and debt payments, with monthly compounding at each investment’s assumed annual return. Savings earn no interest. Unallocated money is excluded from projected values. Returns vary; fees and taxes are excluded.</p>
+
   </div>;
 }
